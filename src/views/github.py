@@ -27,6 +27,43 @@ async def fetch_repo(request, repo_path):
     await request.ctx.redis.set(cache_key, json_module.dumps(commits))
     return json(commits)
 
+def map_commit(c, i = 0):
+    commit = {
+        "authorDate": c["commit"]["author"]["date"],
+        "date": c["commit"]["committer"]["date"],
+        "message": c["commit"]["message"],
+        "url": c["commit"]["url"],
+        "commentCount": c["commit"]["comment_count"]
+    }
+    author = None
+    if c["author"]:
+        author = {
+            "name": c["commit"]["author"]["name"],
+            "username": c["author"]["login"],
+            "picture": c["author"]["avatar_url"],
+            "url": c["author"]["url"],
+            "htmlUrl": c["author"]["html_url"]
+        }
+    committer = None
+    if c["committer"]:
+        committer = {
+            "name": c["commit"]["committer"]["name"],
+            "username": c["committer"]["login"],
+            "picture": c["committer"]["avatar_url"],
+            "url": c["committer"]["url"],
+            "htmlUrl": c["committer"]["html_url"]
+        },
+
+    return {
+        "sha": c["sha"],
+        "index": i,
+        "url": c["url"],
+        "htmlUrl": c["html_url"],
+        "commit": commit,
+        "author": author,
+        "committer": committer,
+        "parents": [p["sha"] for p in c["parents"]],
+    }
 
 async def get_all_commits(repo_path, github_token):
     headers = {"Authorization": f"token {github_token}"}
@@ -40,40 +77,39 @@ async def get_all_commits(repo_path, github_token):
 
     if not link_header:
         commits = initial_request.json()
-        commits.reverse()
-        return commits
+    else:
+        parsed_header = parse_header_links(link_header)
+        concurrent_pages = 10
+        total_pages = int(parsed_header["last"]["qs"]["page"])
 
-    parsed_header = parse_header_links(link_header)
-    concurrent_pages = 10
-    total_pages = int(parsed_header["last"]["qs"]["page"])
+        commits = []
 
-    commits = []
+        current_page = 1
 
-    remaining_pages = total_pages
+        while current_page <= total_pages:
+            requests = []
 
-    while remaining_pages > 0:
-        requests = []
+            for i in range(0, concurrent_pages):
+                request = httpx.get(
+                    f"https://api.github.com/repos/{repo_path}/commits?sha=master&per_page=100&page={current_page}",
+                    headers=headers,
+                )
 
-        for i in range(0, concurrent_pages):
-            request = httpx.get(
-                f"https://api.github.com/repos/{repo_path}/commits?sha=master&per_page=100&page={remaining_pages}",
-                headers=headers,
-            )
+                requests.append(request)
+                current_page = current_page + 1
 
-            requests.append(request)
-            remaining_pages = remaining_pages - 1
+                if current_page > total_pages:
+                    break
 
-            if remaining_pages <= 0:
-                break
+            responses = await asyncio.gather(*requests)
 
-        responses = await asyncio.gather(*requests)
+            for response in responses:
+                response.raise_for_status()
 
-        for response in responses:
-            response.raise_for_status()
+                request_commits = response.json()
+                commits.extend(request_commits)
 
-            request_commits = response.json()
-            request_commits.reverse()
-            commits.extend(request_commits)
+    commits = [map_commit(c, len(commits) - i - 1) for i, c in enumerate(commits)]
 
     return commits
 
