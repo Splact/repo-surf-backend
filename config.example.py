@@ -1,3 +1,6 @@
+DEBUG = False
+WORKERS = 1
+
 GITHUB_TOKEN = ""
 
 REDIS_HOST = "localhost"

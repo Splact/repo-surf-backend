@@ -1,0 +1,29 @@
+version: "3.7"
+services:
+  redis:
+    image: redis
+    networks:
+      - reposurf-network
+    restart: always
+  sanic:
+    build: .
+    depends_on:
+      - redis
+    links:
+      - redis
+    environment:
+      - REPOSURF_SETTINGS=/app/local.config.py
+      - VIRTUAL_HOST=api.repo.surf
+      - VIRTUAL_PORT=5000
+      - LETSENCRYPT_HOST=api.repo.surf
+      - LETSENCRYPT_EMAIL=dario.kar@gmail.com
+    volumes:
+      - /etc/sites/api.repo.surf/local.config.py:/app/local.config.py
+    networks:
+      - reposurf-network
+      - beaver-sites
+    restart: always
+networks:
+  reposurf-network:
+  beaver-sites:
+    external: true
