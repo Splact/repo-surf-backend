@@ -20,12 +20,13 @@ async def fetch_repo(request, repo_path):
     cached_commits = await request.ctx.redis.get(cache_key)
 
     if cached_commits:
-        return json(json_module.loads(cached_commits))
+        commits = json_module.loads(cached_commits)
+    else:
+        commits = await get_all_commits(repo_path, request.app.config["GITHUB_TOKEN"])
+        await request.ctx.redis.set(cache_key, json_module.dumps(commits))
 
-    commits = await get_all_commits(repo_path, request.app.config["GITHUB_TOKEN"])
+    return json(commits, headers={"Access-Control-Allow-Origin": request.app.config['REPOSURF_URL']})
 
-    await request.ctx.redis.set(cache_key, json_module.dumps(commits))
-    return json(commits)
 
 def map_commit(c, i = 0):
     commit = {
