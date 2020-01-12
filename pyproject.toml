@@ -6,7 +6,7 @@ authors = ["Your Name <you@example.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.8"
-sanic = "^19.12.0"
+sanic = "^19.12.2"
 asyncio_redis = "^0.15.1"
 
 [tool.poetry.dev-dependencies]
