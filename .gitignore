@@ -3,3 +3,4 @@ local.config.py
 *.pyc
 *.pyo
 **/__pycache__/**
+*.log

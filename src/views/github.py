@@ -6,6 +6,7 @@ import httpx
 from urllib.parse import parse_qs, urlparse
 
 from sanic import Blueprint
+from sanic.log import logger
 from sanic.response import json
 
 
@@ -17,13 +18,18 @@ async def fetch_repo(request, repo_path):
     commits = []
 
     cache_key = f"repo_{repo_path}"
+    logger.info(f'Check cached commits for "{repo_path}"...')
     cached_commits = await request.ctx.redis.get(cache_key)
 
     if cached_commits:
+        logger.info(f'Cached commits found')
         commits = json_module.loads(cached_commits)
     else:
+        logger.info(f'Cached commits not found. Retrieving commits from Github...')
         commits = await get_all_commits(repo_path, request.app.config["GITHUB_TOKEN"])
+        logger.info(f'Commits loaded. Saving to redis...')
         await request.ctx.redis.set(cache_key, json_module.dumps(commits))
+        logger.info(f'Saved to redis.')
 
     return json(commits, headers={"Access-Control-Allow-Origin": request.app.config['REPOSURF_URL']})
 
@@ -72,6 +78,9 @@ async def get_all_commits(repo_path, github_token):
     initial_page = (
         f"https://api.github.com/repos/{repo_path}/commits?sha=master&per_page=100"
     )
+
+    logger.info(f'Retrieving commits from Github via "{initial_page}"...')
+
     initial_request = await httpx.get(initial_page, headers=headers)
 
     link_header = initial_request.headers.get("link")
@@ -110,9 +119,18 @@ async def get_all_commits(repo_path, github_token):
                 request_commits = response.json()
                 commits.extend(request_commits)
 
-    commits = [map_commit(c, len(commits) - i - 1) for i, c in enumerate(commits)]
+    commits_count = len(commits)
+    mapped_commits = []
+    i = 0
+    for c in commits:
+        if not all(k in c for k in ("sha", "commit")):
+            continue
 
-    return commits
+        mapped_commits.append(map_commit(c, commits_count - i - 1))
+
+        i += 1
+
+    return mapped_commits
 
 
 def parse_header_links(value):

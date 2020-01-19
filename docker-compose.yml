@@ -19,6 +19,7 @@ services:
       - LETSENCRYPT_EMAIL=dario.kar@gmail.com
     volumes:
       - /etc/sites/api.repo.surf/local.config.py:/app/local.config.py
+      - /var/log/sites/api.repo.surf:/app/logs
     networks:
       - reposurf-network
       - beaver-sites
