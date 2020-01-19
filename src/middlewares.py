@@ -1,8 +1,5 @@
 from .redis_pool import RedisPool
 
-from sanic import Blueprint
-from sanic.response import text
-
 
 REDIS_POOL = RedisPool()
 
