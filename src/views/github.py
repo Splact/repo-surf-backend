@@ -90,7 +90,8 @@ async def get_all_commits(repo_path, github_token):
     else:
         parsed_header = parse_header_links(link_header)
         concurrent_pages = 10
-        total_pages = int(parsed_header["last"]["qs"]["page"])
+        # total_pages = int(parsed_header["last"]["qs"]["page"])
+        total_pages = min(int(parsed_header["last"]["qs"]["page"]), 2)
 
         commits = []
 
