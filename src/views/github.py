@@ -72,11 +72,24 @@ def map_commit(c, i = 0):
         "parents": [p["sha"] for p in c["parents"]],
     }
 
+async def get_default_branch(repo_path, github_token):
+    headers = {"Authorization": f"token {github_token}"}
+
+    repo_info_endpoint = f"https://api.github.com/repos/{repo_path}"
+    logger.info(f'Retrieving repository information from Github via "{repo_info_endpoint}"...')
+
+    repo_info_request = await httpx.get(repo_info_endpoint, headers=headers)
+    repo_info = repo_info_request.json()
+
+    return repo_info.get('default_branch', 'master')
+
 async def get_all_commits(repo_path, github_token):
+    default_branch = await get_default_branch(repo_path, github_token)
+
     headers = {"Authorization": f"token {github_token}"}
 
     initial_page = (
-        f"https://api.github.com/repos/{repo_path}/commits?sha=master&per_page=100"
+        f"https://api.github.com/repos/{repo_path}/commits?sha={default_branch}&per_page=100"
     )
 
     logger.info(f'Retrieving commits from Github via "{initial_page}"...')
