@@ -115,7 +115,7 @@ async def get_all_commits(repo_path, github_token):
 
             for i in range(0, concurrent_pages):
                 request = httpx.get(
-                    f"https://api.github.com/repos/{repo_path}/commits?sha=master&per_page=100&page={current_page}",
+                    f"https://api.github.com/repos/{repo_path}/commits?sha={default_branch}&per_page=100&page={current_page}",
                     headers=headers,
                 )
 
